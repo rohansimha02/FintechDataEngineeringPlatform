@@ -12,6 +12,7 @@ __pycache__/
 .vscode/
 
 # Data files
+data/PS_20174392719_1491204439457_log.csv
 *.csv
 *.parquet
 *.xlsx
