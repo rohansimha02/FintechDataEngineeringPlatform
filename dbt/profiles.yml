@@ -1,0 +1,41 @@
+fintech_data_platform:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: localhost
+      user: fintech_user
+      password: fintech_password
+      port: 5432
+      dbname: fintech_data
+      schema: public
+      threads: 4
+      keepalives_idle: 0
+      search_path: public
+      role: fintech_user
+    
+    prod:
+      type: postgres
+      host: {{ env_var('DB_HOST', 'localhost') }}
+      user: {{ env_var('DB_USER', 'fintech_user') }}
+      password: {{ env_var('DB_PASSWORD', 'fintech_password') }}
+      port: {{ env_var('DB_PORT', 5432) }}
+      dbname: {{ env_var('DB_NAME', 'fintech_data') }}
+      schema: public
+      threads: 8
+      keepalives_idle: 0
+      search_path: public
+      role: {{ env_var('DB_ROLE', 'fintech_user') }}
+    
+    test:
+      type: postgres
+      host: localhost
+      user: test_user
+      password: test_password
+      port: 5433
+      dbname: test_fintech_data
+      schema: public
+      threads: 2
+      keepalives_idle: 0
+      search_path: public
+      role: test_user

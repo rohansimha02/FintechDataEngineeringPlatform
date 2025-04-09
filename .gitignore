@@ -13,7 +13,7 @@ __pycache__/
 
 # Data files
 data/PS_20174392719_1491204439457_log.csv
-*.csv
+data/sample_transactions.csv
 *.parquet
 *.xlsx
 *.log

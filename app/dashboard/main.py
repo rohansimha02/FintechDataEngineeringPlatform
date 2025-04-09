@@ -34,7 +34,7 @@ app = dash.Dash(
     __name__,
     external_stylesheets=[
         dbc.themes.BOOTSTRAP,
-        "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap",
+        "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap",
         "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
     ],
     suppress_callback_exceptions=True
@@ -51,9 +51,8 @@ def load_data_from_pipeline():
         etl = FinTechETL()
         df = etl.extract_paysim_data()
         df = etl.transform_paysim_data(df)
-        # Limit to 50K records for dashboard performance
-        if len(df) > 50000:
-            df = df.sample(n=50000, random_state=42)
+        # Use full dataset for comprehensive analysis
+        print(f"Loaded {len(df):,} transactions for dashboard analysis")
         return df
     except Exception as e:
         print(f"ETL Pipeline Error: {e}")
@@ -75,7 +74,7 @@ def load_data_from_database():
         return None
     try:
         with get_db_session() as session:
-            transactions = session.query(Transaction).limit(50000).all()
+            transactions = session.query(Transaction).all()
             fraud_alerts = session.query(FraudAlert).all()
             
             df = pd.DataFrame([{
@@ -84,7 +83,7 @@ def load_data_from_database():
                 'amount': t.amount,
                 'nameOrig': t.name_orig,
                 'oldbalanceOrg': t.oldbalance_orig,
-                'newbalanceOrig': t.newbalance_orig,
+                'newbalanceOrg': t.newbalance_orig,
                 'nameDest': t.name_dest,
                 'oldbalanceDest': t.oldbalance_dest,
                 'newbalanceDest': t.newbalance_dest,
@@ -100,9 +99,13 @@ def load_data_from_database():
 def load_fallback_data():
     """Load fallback data if pipeline fails"""
     try:
-        df = pd.read_csv("data/PS_20174392719_1491204439457_log.csv", nrows=50000)
+        print("Loading sample dataset from data/dashboard_sample.csv...")
+        df = pd.read_csv("data/dashboard_sample.csv")
+        print(f"Successfully loaded {len(df):,} transactions from optimized sample dataset")
         return df
-    except:
+    except Exception as e:
+        print(f"Error loading sample dataset: {e}")
+        print("Falling back to synthetic data...")
         return create_sample_data()
 
 def create_sample_data():
@@ -119,7 +122,7 @@ def create_sample_data():
         'amount': np.random.lognormal(10, 1, n),
         'nameOrig': [f'C{i:010d}' for i in np.random.randint(1000000000, 9999999999, n)],
         'oldbalanceOrg': np.random.exponential(10000, n),
-        'newbalanceOrig': np.random.exponential(10000, n),
+        'newbalanceOrg': np.random.exponential(10000, n),
         'nameDest': [f'M{i:010d}' for i in np.random.randint(1000000000, 9999999999, n)],
         'oldbalanceDest': np.random.exponential(1000, n),
         'newbalanceDest': np.random.exponential(1000, n),
@@ -131,15 +134,15 @@ def create_sample_data():
 
 # Load data with fallback chain
 def load_data():
-    """Load data with priority: Pipeline > API > Database > CSV > Sample"""
-    print("Loading data from data engineering pipeline...")
+    """Load data with priority: Sample CSV > Pipeline > API > Database > Sample"""
+    print("Loading data from sample dataset...")
 
-    # Try ETL pipeline first
-    df = load_data_from_pipeline()
+    # Try sample dataset first (for GitHub compatibility)
+    df = load_fallback_data()
     if df is not None and len(df) > 0:
-        print("Data loaded from ETL pipeline")
+        print("Data loaded from sample dataset")
         print(f"Available columns: {list(df.columns)}")
-        return df, "Real-time ETL Pipeline"
+        return df, f"Optimized Sample Dataset ({len(df):,} transactions)"
 
     # Try API
     api_data = load_data_from_api()
@@ -165,7 +168,7 @@ def load_data():
     return create_sample_data(), "Sample Data"
 
 # Load data immediately when dashboard starts
-print("Loading data from data engineering pipeline...")
+print("Loading data from sample dataset...")
 df, data_source = load_data()
 print(f"Data loaded from {data_source}")
 print(f"Available columns: {list(df.columns)}")
@@ -249,25 +252,32 @@ def calculate_metrics():
 # Calculate metrics with loaded data
 metrics = calculate_metrics()
 
-# Blueish Grey Theme - Professional FinTech
+# Enhanced Professional Color Palette
 COLORS = {
-    'primary': '#2c3e50',      # Blueish grey - main background
-    'secondary': '#34495e',    # Medium blueish grey - cards
-    'accent': '#3498db',       # Blue accent
-    'success': '#27ae60',      # Green success
-    'warning': '#f39c12',      # Orange warning
-    'danger': '#e74c3c',       # Red danger
-    'light': '#ecf0f1',        # Light grey - borders
-    'lighter': '#f8f9fa',      # Very light grey - hover states
-    'dark': '#1a252f',         # Dark blueish grey - deepest background
-    'white': '#ffffff',        # Pure white - text
-    'border': '#bdc3c7',       # Light grey border
-    'text': '#ffffff',         # White text
-    'text_light': '#ecf0f1',   # Light grey text
-    'text_muted': '#bdc3c7'    # Muted grey text
+    'primary': '#1a2332',           # Deep navy blue - main background
+    'secondary': '#2d3748',         # Dark slate - cards
+    'tertiary': '#4a5568',          # Medium slate - accents
+    'accent': '#3182ce',            # Bright blue - primary accent
+    'accent_light': '#63b3ed',      # Light blue - secondary accent
+    'success': '#38a169',           # Green success
+    'warning': '#d69e2e',           # Amber warning
+    'danger': '#e53e3e',            # Red danger
+    'light': '#e2e8f0',             # Light grey - borders
+    'lighter': '#f7fafc',           # Very light grey - hover states
+    'dark': '#0f1419',              # Deepest background
+    'white': '#ffffff',             # Pure white - text
+    'border': '#2d3748',            # Card borders
+    'text': '#ffffff',              # White text
+    'text_light': '#e2e8f0',        # Light grey text
+    'text_muted': '#a0aec0',        # Muted grey text
+    'text_dark': '#2d3748',         # Dark text for light backgrounds
+    'gradient_start': '#1a2332',    # Gradient start
+    'gradient_end': '#2d3748',      # Gradient end
+    'shadow': 'rgba(0, 0, 0, 0.25)', # Shadow color
+    'overlay': 'rgba(26, 35, 50, 0.95)' # Overlay color
 }
 
-# Custom CSS for professional styling
+# Enhanced Professional CSS
 app.index_string = '''
 <!DOCTYPE html>
 <html>
@@ -278,72 +288,265 @@ app.index_string = '''
         <style>
             * {
                 font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                box-sizing: border-box;
             }
+            
             body {
-                background: linear-gradient(135deg, #1a252f 0%, #2c3e50 100%);
+                background: linear-gradient(135deg, #0f1419 0%, #1a2332 50%, #2d3748 100%);
                 margin: 0;
                 padding: 0;
                 color: #ffffff;
+                min-height: 100vh;
+                overflow-x: hidden;
             }
+            
             .dashboard-container {
-                background: #2c3e50;
-                border-radius: 16px;
-                margin: 16px;
-                box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.3), 0 8px 16px -4px rgba(0, 0, 0, 0.2);
+                background: linear-gradient(135deg, #1a2332 0%, #2d3748 100%);
+                border-radius: 20px;
+                margin: 20px;
+                box-shadow: 
+                    0 25px 50px -12px rgba(0, 0, 0, 0.4),
+                    0 10px 20px -5px rgba(0, 0, 0, 0.3),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.1);
                 overflow: hidden;
-                border: 1px solid #bdc3c7;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                backdrop-filter: blur(10px);
             }
+            
             .metric-card {
-                background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
+                background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
                 color: white;
-                border-radius: 12px;
-                padding: 20px;
-                margin: 8px;
-                box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.2), 0 4px 8px -2px rgba(0, 0, 0, 0.1);
-                transition: all 0.3s ease;
-                border: 1px solid #bdc3c7;
+                border-radius: 16px;
+                padding: 24px;
+                margin: 12px;
+                box-shadow: 
+                    0 10px 25px -5px rgba(0, 0, 0, 0.3),
+                    0 4px 10px -2px rgba(0, 0, 0, 0.2),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+                transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                position: relative;
+                overflow: hidden;
             }
+            
+            .metric-card::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 2px;
+                background: linear-gradient(90deg, #3182ce, #63b3ed);
+                opacity: 0;
+                transition: opacity 0.3s ease;
+            }
+            
             .metric-card:hover {
-                transform: translateY(-4px);
-                box-shadow: 0 12px 24px -6px rgba(0, 0, 0, 0.3), 0 6px 12px -3px rgba(0, 0, 0, 0.2);
-                border-color: #3498db;
+                transform: translateY(-8px) scale(1.02);
+                box-shadow: 
+                    0 20px 40px -10px rgba(0, 0, 0, 0.4),
+                    0 8px 20px -4px rgba(0, 0, 0, 0.3),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+                border-color: rgba(99, 179, 237, 0.3);
             }
+            
+            .metric-card:hover::before {
+                opacity: 1;
+            }
+            
             .status-indicator {
                 display: inline-block;
-                width: 8px;
-                height: 8px;
+                width: 10px;
+                height: 10px;
                 border-radius: 50%;
-                margin-right: 6px;
+                margin-right: 8px;
+                box-shadow: 0 0 10px currentColor;
+                animation: pulse 2s infinite;
             }
-            .status-green { background-color: #27ae60; }
-            .status-yellow { background-color: #f39c12; }
-            .status-red { background-color: #e74c3c; }
+            
+            @keyframes pulse {
+                0% { opacity: 1; }
+                50% { opacity: 0.7; }
+                100% { opacity: 1; }
+            }
+            
+            .status-green { 
+                background-color: #38a169; 
+                box-shadow: 0 0 15px rgba(56, 161, 105, 0.5);
+            }
+            .status-yellow { 
+                background-color: #d69e2e; 
+                box-shadow: 0 0 15px rgba(214, 158, 46, 0.5);
+            }
+            .status-red { 
+                background-color: #e53e3e; 
+                box-shadow: 0 0 15px rgba(229, 62, 62, 0.5);
+            }
+            
             .tab-content {
-                background: #34495e;
-                border-radius: 12px;
-                padding: 24px;
-                margin-top: 16px;
-                box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.2);
-                border: 1px solid #bdc3c7;
+                background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+                border-radius: 16px;
+                padding: 32px;
+                margin-top: 20px;
+                box-shadow: 
+                    0 10px 25px -5px rgba(0, 0, 0, 0.3),
+                    0 4px 10px -2px rgba(0, 0, 0, 0.2);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                backdrop-filter: blur(10px);
             }
+            
+            .nav-tabs {
+                border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+                margin-bottom: 0;
+            }
+            
             .nav-tabs .nav-link {
-                color: #ecf0f1;
+                color: #a0aec0;
                 border: none;
-                padding: 16px 24px;
+                padding: 20px 32px;
                 font-weight: 600;
+                font-size: 14px;
                 border-radius: 12px 12px 0 0;
-                background: #2c3e50;
-                transition: all 0.3s ease;
+                background: transparent;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                position: relative;
+                margin-right: 4px;
+                letter-spacing: 0.5px;
+                text-transform: uppercase;
             }
+            
             .nav-tabs .nav-link.active {
-                color: #3498db;
-                background: #34495e;
-                border-bottom: 3px solid #3498db;
-                box-shadow: 0 4px 8px -2px rgba(0, 0, 0, 0.2);
+                color: #3182ce;
+                background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+                border-bottom: 3px solid #3182ce;
+                box-shadow: 
+                    0 4px 15px -2px rgba(49, 130, 206, 0.3),
+                    0 2px 8px -1px rgba(0, 0, 0, 0.2);
+                transform: translateY(-2px);
             }
+            
             .nav-tabs .nav-link:hover {
                 color: #ffffff;
-                background: #3a5a78;
+                background: rgba(49, 130, 206, 0.1);
+                transform: translateY(-1px);
+            }
+            
+            .card {
+                background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 16px;
+                box-shadow: 
+                    0 10px 25px -5px rgba(0, 0, 0, 0.3),
+                    0 4px 10px -2px rgba(0, 0, 0, 0.2);
+                transition: all 0.3s ease;
+                overflow: hidden;
+            }
+            
+            .card:hover {
+                transform: translateY(-4px);
+                box-shadow: 
+                    0 20px 40px -10px rgba(0, 0, 0, 0.4),
+                    0 8px 20px -4px rgba(0, 0, 0, 0.3);
+            }
+            
+            .card-header {
+                background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                padding: 20px 24px;
+                font-weight: 600;
+                letter-spacing: 0.5px;
+            }
+            
+            .card-body {
+                padding: 24px;
+            }
+            
+            .badge {
+                background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                padding: 8px 16px;
+                border-radius: 20px;
+                font-weight: 500;
+                letter-spacing: 0.5px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            }
+            
+            .header-gradient {
+                background: linear-gradient(135deg, #1a2332 0%, #2d3748 50%, #4a5568 100%);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                box-shadow: 
+                    0 20px 40px -10px rgba(0, 0, 0, 0.4),
+                    0 10px 20px -5px rgba(0, 0, 0, 0.3);
+            }
+            
+            .metric-value {
+                font-size: 2.5rem;
+                font-weight: 800;
+                background: linear-gradient(135deg, #3182ce, #63b3ed);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            }
+            
+            .metric-label {
+                font-size: 0.875rem;
+                font-weight: 500;
+                color: #a0aec0;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                margin-bottom: 8px;
+            }
+            
+            .metric-subtitle {
+                font-size: 0.75rem;
+                color: #718096;
+                font-weight: 400;
+            }
+            
+            .footer {
+                background: linear-gradient(135deg, #1a2332 0%, #2d3748 100%);
+                border-top: 1px solid rgba(255, 255, 255, 0.1);
+                padding: 24px;
+                margin-top: 40px;
+                border-radius: 16px;
+                box-shadow: 
+                    0 -10px 25px -5px rgba(0, 0, 0, 0.3),
+                    0 -4px 10px -2px rgba(0, 0, 0, 0.2);
+            }
+            
+            /* Scrollbar styling */
+            ::-webkit-scrollbar {
+                width: 8px;
+            }
+            
+            ::-webkit-scrollbar-track {
+                background: #2d3748;
+                border-radius: 4px;
+            }
+            
+            ::-webkit-scrollbar-thumb {
+                background: linear-gradient(135deg, #4a5568, #2d3748);
+                border-radius: 4px;
+            }
+            
+            ::-webkit-scrollbar-thumb:hover {
+                background: linear-gradient(135deg, #3182ce, #63b3ed);
+            }
+            
+            /* Loading animation */
+            .loading {
+                display: inline-block;
+                width: 20px;
+                height: 20px;
+                border: 3px solid rgba(255, 255, 255, 0.3);
+                border-radius: 50%;
+                border-top-color: #3182ce;
+                animation: spin 1s ease-in-out infinite;
+            }
+            
+            @keyframes spin {
+                to { transform: rotate(360deg); }
             }
         </style>
         {%metas%}
@@ -361,77 +564,98 @@ app.index_string = '''
 </html>
 '''
 
-# App layout with professional styling
+# App layout with enhanced professional styling
 app.layout = dbc.Container([
-    # Header
+    # Enhanced Header
     dbc.Row([
         dbc.Col([
             html.Div([
-                html.H1([
-                    html.I(className="fas fa-chart-line me-3", style={'color': COLORS['white']}),
-                    "FinTech Data Platform"
-                ], className="mb-2 fw-bold", style={'color': COLORS['white'], 'fontSize': '2.5rem', 'textShadow': '0 2px 4px rgba(0,0,0,0.3)'}),
-                html.H5("Enterprise Transaction Analytics & Fraud Detection", 
-                       className="text-muted mb-3", style={'color': COLORS['text_light'], 'fontSize': '1.1rem'}),
                 html.Div([
-                    html.Span([
-                        html.I(className="fas fa-circle status-green me-2"),
-                        "Real-time Processing"
-                    ], className="badge me-2", style={'backgroundColor': '#5a6c7d', 'color': 'white'}),
-                    html.Span([
-                        html.I(className="fas fa-circle status-green me-2"),
-                        "ML-Powered Detection"
-                    ], className="badge me-2", style={'backgroundColor': '#7f8c8d', 'color': 'white'}),
-                    html.Span([
-                        html.I(className="fas fa-circle status-green me-2"),
-                        "99.9% Uptime"
-                    ], className="badge", style={'backgroundColor': '#95a5a6', 'color': 'white'})
-                ])
-            ], className="text-center py-4")
+                    html.H1([
+                        html.I(className="fas fa-chart-line me-3", style={'color': '#3182ce', 'fontSize': '2.5rem'}),
+                        "FinTech Data Platform"
+                    ], className="mb-3 fw-bold", style={
+                        'color': COLORS['white'], 
+                        'fontSize': '3rem', 
+                        'fontWeight': '800',
+                        'textShadow': '0 4px 8px rgba(0,0,0,0.4)',
+                        'letterSpacing': '-0.5px'
+                    }),
+                    html.H4("Enterprise Transaction Analytics & Fraud Detection", 
+                           className="mb-4", style={
+                               'color': COLORS['text_light'], 
+                               'fontSize': '1.25rem',
+                               'fontWeight': '400',
+                               'letterSpacing': '0.5px'
+                           }),
+                    html.Div([
+                        html.Span([
+                            html.I(className="fas fa-circle status-green me-2"),
+                            "Real-time Processing"
+                        ], className="badge me-3", style={'backgroundColor': 'rgba(56, 161, 105, 0.2)', 'color': '#38a169'}),
+                        html.Span([
+                            html.I(className="fas fa-circle status-green me-2"),
+                            "ML-Powered Detection"
+                        ], className="badge me-3", style={'backgroundColor': 'rgba(49, 130, 206, 0.2)', 'color': '#3182ce'}),
+                        html.Span([
+                            html.I(className="fas fa-circle status-green me-2"),
+                            "99.9% Uptime"
+                        ], className="badge", style={'backgroundColor': 'rgba(214, 158, 46, 0.2)', 'color': '#d69e2e'})
+                    ])
+                ], className="text-center py-5")
+            ], className="header-gradient", style={'borderRadius': '20px', 'padding': '40px', 'marginBottom': '32px'})
         ])
-    ], className="mb-4", style={'backgroundColor': COLORS['primary'], 'borderRadius': '16px', 'padding': '32px', 'boxShadow': '0 20px 40px -10px rgba(0, 0, 0, 0.3)', 'border': f'1px solid {COLORS["border"]}'}),
+    ]),
     
-    # Key Metrics Row
+    # Enhanced Key Metrics Row
     dbc.Row([
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
-                    html.H6("Total Transactions", className="text-muted mb-1", style={'color': COLORS['text_light']}),
-                    html.H3(f"{metrics['total_transactions']:,}", className="fw-bold", style={'color': COLORS['text_muted']}),
-                    html.Small("Processed", className="text-muted", style={'color': COLORS['text_muted']})
+                    html.Div([
+                        html.H6("Total Transactions", className="metric-label"),
+                        html.H2(f"{metrics['total_transactions']:,}", className="metric-value"),
+                        html.P("Processed", className="metric-subtitle")
+                    ], className="text-center")
                 ])
-            ], className="border-0 shadow-sm h-100")
+            ], className="border-0 shadow-lg h-100")
         ], width=3),
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
-                    html.H6("Fraud Rate", className="text-muted mb-1", style={'color': COLORS['text_light']}),
-                    html.H3(f"{metrics['fraud_rate']:.2f}%", className="fw-bold", style={'color': COLORS['text_muted']}),
-                    html.Small(f"{metrics['total_fraud']:,} detected", className="text-muted", style={'color': COLORS['text_muted']})
+                    html.Div([
+                        html.H6("Fraud Rate", className="metric-label"),
+                        html.H2(f"{metrics['fraud_rate']:.2f}%", className="metric-value"),
+                        html.P(f"{metrics['total_fraud']:,} detected", className="metric-subtitle")
+                    ], className="text-center")
                 ])
-            ], className="border-0 shadow-sm h-100")
+            ], className="border-0 shadow-lg h-100")
         ], width=3),
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
-                    html.H6("Total Volume", className="text-muted mb-1", style={'color': COLORS['text_light']}),
-                    html.H3(f"${metrics['total_volume']:,.0f}", className="fw-bold", style={'color': COLORS['text_muted']}),
-                    html.Small("USD processed", className="text-muted", style={'color': COLORS['text_muted']})
+                    html.Div([
+                        html.H6("Total Volume", className="metric-label"),
+                        html.H2(f"${metrics['total_volume']:,.0f}", className="metric-value"),
+                        html.P("USD processed", className="metric-subtitle")
+                    ], className="text-center")
                 ])
-            ], className="border-0 shadow-sm h-100")
+            ], className="border-0 shadow-lg h-100")
         ], width=3),
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
-                    html.H6("High-Risk Transactions", className="text-muted mb-1", style={'color': COLORS['text_light']}),
-                    html.H3(f"{metrics['high_risk_transactions']:,}", className="fw-bold", style={'color': COLORS['text_muted']}),
-                    html.Small("Flagged for review", className="text-muted", style={'color': COLORS['text_muted']})
+                    html.Div([
+                        html.H6("High-Risk Transactions", className="metric-label"),
+                        html.H2(f"{metrics['high_risk_transactions']:,}", className="metric-value"),
+                        html.P("Flagged for review", className="metric-subtitle")
+                    ], className="text-center")
                 ])
-            ], className="border-0 shadow-sm h-100")
+            ], className="border-0 shadow-lg h-100")
         ], width=3)
-    ], className="mb-4"),
+    ], className="mb-5"),
     
-    # Tabs for different views
+    # Enhanced Tabs
     dbc.Tabs([
         # Overview Tab
         dbc.Tab([
@@ -440,10 +664,10 @@ app.layout = dbc.Container([
                     dbc.Card([
                         dbc.CardHeader([
                             html.H5([
-                                html.I(className="fas fa-chart-pie me-2"),
+                                html.I(className="fas fa-chart-pie me-3", style={'color': '#3182ce'}),
                                 "Transaction Distribution"
-                            ], className="mb-0 fw-semibold", style={'color': COLORS['white']})
-                        ], style={'backgroundColor': COLORS['secondary'], 'borderBottom': f'1px solid {COLORS["border"]}'}),
+                            ], className="mb-0 fw-bold", style={'color': COLORS['white'], 'fontSize': '1.25rem'})
+                        ]),
                         dbc.CardBody([
                             dcc.Graph(
                                 id='transaction-types-chart',
@@ -451,28 +675,32 @@ app.layout = dbc.Container([
                                     values=metrics['transaction_types'].values,
                                     names=metrics['transaction_types'].index,
                                     title="",
-                                    color_discrete_sequence=['#5a6c7d', '#7f8c8d', '#95a5a6', '#bdc3c7', '#ecf0f1']
+                                    color_discrete_sequence=['#3182ce', '#63b3ed', '#90cdf4', '#bee3f8', '#ebf8ff']
                                 ).update_layout(
                                     showlegend=True,
-                                    height=300,
+                                    height=350,
                                     margin=dict(l=20, r=20, t=20, b=20),
                                     font={'family': 'Inter', 'size': 12, 'color': COLORS['white']},
-                                    plot_bgcolor=COLORS['secondary'],
-                                    paper_bgcolor=COLORS['secondary'],
-                                    legend=dict(font=dict(color=COLORS['white']))
+                                    plot_bgcolor='rgba(0,0,0,0)',
+                                    paper_bgcolor='rgba(0,0,0,0)',
+                                    legend=dict(
+                                        font=dict(color=COLORS['white'], size=11),
+                                        bgcolor='rgba(0,0,0,0)',
+                                        bordercolor='rgba(255,255,255,0.1)'
+                                    )
                                 )
                             )
                         ])
-                    ], className="border-0 shadow-sm h-100")
+                    ], className="border-0 shadow-lg h-100")
                 ], width=6),
                 dbc.Col([
                     dbc.Card([
                         dbc.CardHeader([
                             html.H5([
-                                html.I(className="fas fa-shield-alt me-2"),
+                                html.I(className="fas fa-shield-alt me-3", style={'color': '#e53e3e'}),
                                 "Fraud Detection by Type"
-                            ], className="mb-0 fw-semibold", style={'color': COLORS['white']})
-                        ], style={'backgroundColor': COLORS['secondary'], 'borderBottom': f'1px solid {COLORS["border"]}'}),
+                            ], className="mb-0 fw-bold", style={'color': COLORS['white'], 'fontSize': '1.25rem'})
+                        ]),
                         dbc.CardBody([
                             dcc.Graph(
                                 id='fraud-chart',
@@ -481,91 +709,183 @@ app.layout = dbc.Container([
                                         x=metrics['transaction_types'].index,
                                         y=metrics['transaction_types'].values,
                                         name='Total Transactions',
-                                        marker_color='#5a6c7d',
+                                        marker_color='#3182ce',
                                         opacity=0.9
                                     ),
                                     go.Bar(
                                         x=metrics['fraud_by_type'].index,
                                         y=metrics['fraud_by_type'].values,
                                         name='Fraud Cases',
-                                        marker_color='#7f8c8d',
+                                        marker_color='#e53e3e',
                                         opacity=0.8
                                     )
                                 ]).update_layout(
                                     barmode='group',
-                                    height=300,
+                                    height=350,
                                     margin=dict(l=20, r=20, t=20, b=20),
-                                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(color=COLORS['white'])),
+                                    legend=dict(
+                                        orientation="h", 
+                                        yanchor="bottom", 
+                                        y=1.02, 
+                                        xanchor="right", 
+                                        x=1, 
+                                        font=dict(color=COLORS['white'], size=11),
+                                        bgcolor='rgba(0,0,0,0)',
+                                        bordercolor='rgba(255,255,255,0.1)'
+                                    ),
                                     font={'family': 'Inter', 'size': 12, 'color': COLORS['white']},
-                                    plot_bgcolor=COLORS['secondary'],
-                                    paper_bgcolor=COLORS['secondary'],
-                                    xaxis=dict(showgrid=False, color=COLORS['white']),
-                                    yaxis=dict(showgrid=True, gridcolor=COLORS['border'], color=COLORS['white'])
+                                    plot_bgcolor='rgba(0,0,0,0)',
+                                    paper_bgcolor='rgba(0,0,0,0)',
+                                    xaxis=dict(
+                                        showgrid=False, 
+                                        color=COLORS['white'],
+                                        tickfont=dict(size=11)
+                                    ),
+                                    yaxis=dict(
+                                        showgrid=True, 
+                                        gridcolor='rgba(255,255,255,0.1)', 
+                                        color=COLORS['white'],
+                                        tickfont=dict(size=11)
+                                    )
                                 )
                             )
                         ])
-                    ], className="border-0 shadow-sm h-100")
+                    ], className="border-0 shadow-lg h-100")
                 ], width=6)
-            ], className="mb-4"),
+            ], className="mb-5"),
             
             dbc.Row([
                 dbc.Col([
                     dbc.Card([
                         dbc.CardHeader([
                             html.H5([
-                                html.I(className="fas fa-clock me-2"),
+                                html.I(className="fas fa-clock me-3", style={'color': '#38a169'}),
                                 "Transaction Volume Over Time"
-                            ], className="mb-0 fw-semibold", style={'color': COLORS['white']})
-                        ], style={'backgroundColor': COLORS['secondary'], 'borderBottom': f'1px solid {COLORS["border"]}'}),
+                            ], className="mb-0 fw-bold", style={'color': COLORS['white'], 'fontSize': '1.25rem'})
+                        ]),
                         dbc.CardBody([
                             dcc.Graph(
                                 id='volume-chart',
-                                figure=px.line(
-                                    x=metrics['hourly_volume'].index,
-                                    y=metrics['hourly_volume'].values,
-                                    title="",
-                                    labels={'x': 'Hour of Day', 'y': 'Volume ($)'}
+                                figure=go.Figure().add_trace(
+                                    go.Scatter(
+                                        x=metrics['hourly_volume'].index,
+                                        y=metrics['hourly_volume'].values,
+                                        mode='lines',
+                                        name='Hourly Volume',
+                                        line=dict(color='#3182ce', width=4),
+                                        fill='tonexty',
+                                        fillcolor='rgba(49, 130, 206, 0.1)'
+                                    )
                                 ).update_layout(
-                                    height=300,
+                                    height=350,
                                     margin=dict(l=20, r=20, t=20, b=20),
                                     font={'family': 'Inter', 'size': 12, 'color': COLORS['white']},
-                                    plot_bgcolor=COLORS['secondary'],
-                                    paper_bgcolor=COLORS['secondary'],
-                                    xaxis=dict(showgrid=True, gridcolor=COLORS['border'], color=COLORS['white']),
-                                    yaxis=dict(showgrid=True, gridcolor=COLORS['border'], color=COLORS['white'])
-                                ).update_traces(line_color='#5a6c7d', line_width=4)
+                                    plot_bgcolor='rgba(0,0,0,0)',
+                                    paper_bgcolor='rgba(0,0,0,0)',
+                                    xaxis=dict(
+                                        title='Hour of Day',
+                                        showgrid=True, 
+                                        gridcolor='rgba(255,255,255,0.1)', 
+                                        color=COLORS['white'],
+                                        tickfont=dict(size=11)
+                                    ),
+                                    yaxis=dict(
+                                        title='Volume ($)',
+                                        showgrid=True, 
+                                        gridcolor='rgba(255,255,255,0.1)', 
+                                        color=COLORS['white'],
+                                        tickfont=dict(size=11)
+                                    )
+                                )
                             )
                         ])
-                    ], className="border-0 shadow-sm h-100")
+                    ], className="border-0 shadow-lg h-100")
                 ], width=6),
                 dbc.Col([
                     dbc.Card([
                         dbc.CardHeader([
                             html.H5([
-                                html.I(className="fas fa-chart-bar me-2"),
-                                "Amount Distribution"
-                            ], className="mb-0 fw-semibold", style={'color': COLORS['white']})
-                        ], style={'backgroundColor': COLORS['secondary'], 'borderBottom': f'1px solid {COLORS["border"]}'}),
+                                html.I(className="fas fa-chart-line me-3", style={'color': '#d69e2e'}),
+                                "Transaction Amount Analysis"
+                            ], className="mb-0 fw-bold", style={'color': COLORS['white'], 'fontSize': '1.25rem'})
+                        ]),
                         dbc.CardBody([
                             dcc.Graph(
                                 id='amount-chart',
-                                figure=px.histogram(
-                                    x=df['amount'],
-                                    nbins=30,
-                                    title="",
-                                    labels={'x': 'Amount ($)', 'y': 'Frequency'}
+                                figure=go.Figure().add_trace(
+                                    go.Scatter(
+                                        x=df['step'],
+                                        y=df['amount'],
+                                        mode='markers',
+                                        name='Transaction Amounts',
+                                        marker=dict(
+                                            color=df['amount'],
+                                            colorscale='Viridis',
+                                            size=4,
+                                            opacity=0.6,
+                                            colorbar=dict(
+                                                title="Amount ($)",
+                                                titlefont=dict(color=COLORS['white']),
+                                                tickfont=dict(color=COLORS['white'])
+                                            )
+                                        ),
+                                        text=df['type'] + '<br>Amount: $' + df['amount'].astype(str),
+                                        hoverinfo='text'
+                                    )
+                                ).add_trace(
+                                    go.Scatter(
+                                        x=df['step'],
+                                        y=[df['amount'].quantile(0.95)] * len(df),
+                                        mode='lines',
+                                        name='95th Percentile',
+                                        line=dict(color='#e53e3e', width=2, dash='dash'),
+                                        showlegend=True
+                                    )
+                                ).add_trace(
+                                    go.Scatter(
+                                        x=df['step'],
+                                        y=[df['amount'].quantile(0.99)] * len(df),
+                                        mode='lines',
+                                        name='99th Percentile',
+                                        line=dict(color='#d69e2e', width=2, dash='dash'),
+                                        showlegend=True
+                                    )
                                 ).update_layout(
-                                    height=300,
+                                    height=350,
                                     margin=dict(l=20, r=20, t=20, b=20),
                                     font={'family': 'Inter', 'size': 12, 'color': COLORS['white']},
-                                    plot_bgcolor=COLORS['secondary'],
-                                    paper_bgcolor=COLORS['secondary'],
-                                    xaxis=dict(showgrid=True, gridcolor=COLORS['border'], color=COLORS['white']),
-                                    yaxis=dict(showgrid=True, gridcolor=COLORS['border'], color=COLORS['white'])
-                                ).update_traces(marker_color='#5a6c7d', opacity=0.9)
+                                    plot_bgcolor='rgba(0,0,0,0)',
+                                    paper_bgcolor='rgba(0,0,0,0)',
+                                    xaxis=dict(
+                                        title='Time Step',
+                                        showgrid=True, 
+                                        gridcolor='rgba(255,255,255,0.1)', 
+                                        color=COLORS['white'],
+                                        tickfont=dict(size=11)
+                                    ),
+                                    yaxis=dict(
+                                        title='Amount ($)',
+                                        showgrid=True, 
+                                        gridcolor='rgba(255,255,255,0.1)', 
+                                        color=COLORS['white'],
+                                        tickfont=dict(size=11),
+                                        type='log'
+                                    ),
+                                    legend=dict(
+                                        orientation="h", 
+                                        yanchor="bottom", 
+                                        y=1.02, 
+                                        xanchor="right", 
+                                        x=1, 
+                                        font=dict(color=COLORS['white'], size=11),
+                                        bgcolor='rgba(0,0,0,0)',
+                                        bordercolor='rgba(255,255,255,0.1)'
+                                    ),
+                                    hovermode='closest'
+                                )
                             )
                         ])
-                    ], className="border-0 shadow-sm h-100")
+                    ], className="border-0 shadow-lg h-100")
                 ], width=6)
             ])
         ], label="Overview", tab_id="overview"),
@@ -577,96 +897,107 @@ app.layout = dbc.Container([
                     dbc.Card([
                         dbc.CardHeader([
                             html.H5([
-                                html.I(className="fas fa-analytics me-2"),
+                                html.I(className="fas fa-analytics me-3", style={'color': '#e53e3e'}),
                                 "Risk Analysis"
-                            ], className="mb-0 fw-semibold", style={'color': COLORS['white']})
-                        ], style={'backgroundColor': COLORS['secondary'], 'borderBottom': f'1px solid {COLORS["border"]}'}),
+                            ], className="mb-0 fw-bold", style={'color': COLORS['white'], 'fontSize': '1.25rem'})
+                        ]),
                         dbc.CardBody([
                             dbc.Row([
                                 dbc.Col([
                                     html.Div([
-                                        html.H4("High-Value", className="fw-bold", style={'color': COLORS['text_muted']}),
-                                        html.H3(f"{(df['amount'] > 10000).sum():,}", style={'color': COLORS['text_muted']}),
-                                        html.P("Transactions > $10K", className="text-muted small")
-                                    ], className="text-center p-3")
-                                ], width=4),
+                                        html.H4("High-Value", className="fw-bold metric-value", style={'fontSize': '1.5rem'}),
+                                        html.H3(f"{(df['amount'] > 10000).sum():,}", className="metric-value"),
+                                        html.P("Transactions > $10K", className="metric-subtitle")
+                                    ], className="text-center p-4")
+                                ], width=3),
                                 dbc.Col([
                                     html.Div([
-                                        html.H4("Unusual", className="fw-bold", style={'color': COLORS['text_muted']}),
-                                        html.H3(f"{(df['amount'] > df['amount'].quantile(0.95)).sum():,}", style={'color': COLORS['text_muted']}),
-                                        html.P("Top 5% by Amount", className="text-muted small")
-                                    ], className="text-center p-3")
-                                ], width=4),
+                                        html.H4("Unusual", className="fw-bold metric-value", style={'fontSize': '1.5rem'}),
+                                        html.H3(f"{(df['amount'] > df['amount'].quantile(0.95)).sum():,}", className="metric-value"),
+                                        html.P("Top 5% by Amount", className="metric-subtitle")
+                                    ], className="text-center p-4")
+                                ], width=3),
                                 dbc.Col([
                                     html.Div([
-                                        html.H4("Balance Changes", className="fw-bold", style={'color': COLORS['text_muted']}),
-                                        html.H3(f"{(abs(df['sender_new_balance'] - df['sender_old_balance']) / (df['sender_old_balance'] + 1) > 0.5).sum():,}", style={'color': COLORS['text_muted']}),
-                                        html.P(">50% Change", className="text-muted small")
-                                    ], className="text-center p-3")
-                                ], width=4)
+                                        html.H4("Balance Changes", className="fw-bold metric-value", style={'fontSize': '1.5rem'}),
+                                        html.H3(f"{(abs(df['newbalanceOrig'] - df['oldbalanceOrg']) / (df['oldbalanceOrg'] + 1) > 0.5).sum():,}", className="metric-value"),
+                                        html.P(">50% Change", className="metric-subtitle")
+                                    ], className="text-center p-4")
+                                ], width=3),
+                                dbc.Col([
+                                    html.Div([
+                                        html.H4("Risk Score", className="fw-bold metric-value", style={'fontSize': '1.5rem'}),
+                                        html.H3(f"{metrics['high_risk_transactions']:,}", className="metric-value"),
+                                        html.P("High Risk Total", className="metric-subtitle")
+                                    ], className="text-center p-4")
+                                ], width=3)
                             ])
                         ])
-                    ], className="border-0 shadow-sm")
+                    ], className="border-0 shadow-lg")
                 ])
-            ], className="mb-4"),
+            ], className="mb-5"),
             
             dbc.Row([
                 dbc.Col([
                     dbc.Card([
                         dbc.CardHeader([
                             html.H5([
-                                html.I(className="fas fa-database me-2"),
+                                html.I(className="fas fa-database me-3", style={'color': '#38a169'}),
                                 "Data Pipeline Metrics"
-                            ], className="mb-0 fw-semibold", style={'color': COLORS['white']})
-                        ], style={'backgroundColor': COLORS['secondary'], 'borderBottom': f'1px solid {COLORS["border"]}'}),
+                            ], className="mb-0 fw-bold", style={'color': COLORS['white'], 'fontSize': '1.25rem'})
+                        ]),
                         dbc.CardBody([
                             dbc.Row([
                                 dbc.Col([
                                     html.Div([
-                                        html.H6("Data Source", className="text-muted"),
-                                        html.P(data_source, className="fw-semibold", style={'color': COLORS['text_muted']})
+                                        html.H6("Data Source", className="metric-label"),
+                                        html.P(data_source, className="fw-semibold", style={'color': COLORS['text_muted'], 'fontSize': '1.1rem'})
                                     ])
                                 ], width=3),
                                 dbc.Col([
                                     html.Div([
-                                        html.H6("Processing Time", className="text-muted"),
-                                        html.P("< 2s", className="fw-semibold text-success")
+                                        html.H6("Processing Time", className="metric-label"),
+                                        html.P("≤ 2s", className="fw-semibold text-success", style={'fontSize': '1.1rem'})
                                     ])
                                 ], width=3),
                                 dbc.Col([
                                     html.Div([
-                                        html.H6("Data Quality", className="text-muted"),
-                                        html.P("99.8%", className="fw-semibold text-success")
+                                        html.H6("Data Quality", className="metric-label"),
+                                        html.P("99.8%", className="fw-semibold text-success", style={'fontSize': '1.1rem'})
                                     ])
                                 ], width=3),
                                 dbc.Col([
                                     html.Div([
-                                        html.H6("Last Updated", className="text-muted"),
-                                        html.P(datetime.now().strftime("%H:%M:%S"), className="fw-semibold", style={'color': COLORS['text_muted']})
+                                        html.H6("Last Updated", className="metric-label"),
+                                        html.P(datetime.now().strftime("%H:%M:%S"), className="fw-semibold", style={'color': COLORS['text_muted'], 'fontSize': '1.1rem'})
                                     ])
                                 ], width=3)
                             ])
                         ])
-                    ], className="border-0 shadow-sm")
+                    ], className="border-0 shadow-lg")
                 ])
             ])
         ], label="Analytics", tab_id="analytics")
-    ], id="tabs", active_tab="overview", className="mb-4"),
+    ], id="tabs", active_tab="overview", className="mb-5"),
     
-    # Footer
+    # Enhanced Footer
     dbc.Row([
         dbc.Col([
-            html.Hr(style={'borderColor': COLORS['border']}),
-            html.P([
-                html.I(className="fas fa-copyright me-2"),
-                "FinTech Data Platform - Enterprise Analytics Dashboard",
-                html.Br(),
-                html.Small("Powered by Apache Kafka, Spark, PostgreSQL, and Redis", className="text-muted")
-            ], className="text-center text-muted", style={'color': COLORS['white']})
+            html.Div([
+                html.Hr(style={'borderColor': 'rgba(255,255,255,0.1)', 'margin': '40px 0'}),
+                html.Div([
+                    html.I(className="fas fa-copyright me-2", style={'color': '#3182ce'}),
+                    html.Span("FinTech Data Platform - Enterprise Analytics Dashboard", 
+                             style={'color': COLORS['white'], 'fontWeight': '600', 'fontSize': '1.1rem'}),
+                    html.Br(),
+                    html.Small("Powered by Apache Kafka, PostgreSQL, FastAPI, and Dash", 
+                              style={'color': COLORS['text_muted'], 'fontSize': '0.9rem'})
+                ], className="text-center")
+            ], className="footer")
         ])
     ])
     
-], fluid=True, className="py-4", style={'backgroundColor': COLORS['primary']})
+], fluid=True, className="py-4", style={'backgroundColor': 'transparent'})
 
 # Callbacks for interactivity
 @app.callback(
@@ -679,14 +1010,19 @@ def update_transaction_chart(click_data):
         values=metrics['transaction_types'].values,
         names=metrics['transaction_types'].index,
         title="",
-        color_discrete_sequence=['#5a6c7d', '#7f8c8d', '#95a5a6', '#bdc3c7', '#ecf0f1']
+        color_discrete_sequence=['#3182ce', '#63b3ed', '#90cdf4', '#bee3f8', '#ebf8ff']
     ).update_layout(
         showlegend=True,
-        height=300,
+        height=350,
         margin=dict(l=20, r=20, t=20, b=20),
-        font={'family': 'Inter', 'size': 12},
+        font={'family': 'Inter', 'size': 12, 'color': COLORS['white']},
         plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)'
+        paper_bgcolor='rgba(0,0,0,0)',
+        legend=dict(
+            font=dict(color=COLORS['white'], size=11),
+            bgcolor='rgba(0,0,0,0)',
+            bordercolor='rgba(255,255,255,0.1)'
+        )
     )
 
 if __name__ == '__main__':

@@ -1,0 +1,54 @@
+{
+  "name": "FinTech Data Platform",
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "api",
+  "workspaceFolder": "/app",
+  
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.black-formatter",
+        "ms-python.flake8",
+        "ms-vscode.vscode-json",
+        "redhat.vscode-yaml",
+        "ms-azuretools.vscode-docker",
+        "ms-python.pylint",
+        "ms-python.debugpy"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.linting.enabled": true,
+        "python.linting.pylintEnabled": true,
+        "python.formatting.provider": "black",
+        "python.testing.pytestEnabled": true,
+        "python.testing.pytestArgs": [
+          "tests"
+        ]
+      }
+    }
+  },
+  
+  "forwardPorts": [8000, 8061, 3000, 9090, 5432, 9092],
+  "portsAttributes": {
+    "8000": {
+      "label": "FastAPI",
+      "onAutoForward": "notify"
+    },
+    "8061": {
+      "label": "Dashboard",
+      "onAutoForward": "notify"
+    },
+    "3000": {
+      "label": "Grafana",
+      "onAutoForward": "notify"
+    },
+    "9090": {
+      "label": "Prometheus",
+      "onAutoForward": "notify"
+    }
+  },
+  
+  "postCreateCommand": "pip install -r requirements.txt",
+  "postStartCommand": "echo 'FinTech Data Platform ready!'"
+}

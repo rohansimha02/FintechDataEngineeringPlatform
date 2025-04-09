@@ -7,10 +7,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import structlog
 import time
+from prometheus_client import make_asgi_app, Counter, Histogram
 
 from app.core.config import settings
 from app.core.database import init_db
-from app.api.routers import analytics
+from app.api.routers import analytics, auth
 from app.streaming.kafka_producer import fintech_producer
 
 # Configure structured logging
@@ -28,6 +29,19 @@ structlog.configure(
 )
 
 logger = structlog.get_logger()
+
+# Prometheus metrics
+REQUEST_COUNT = Counter(
+    'http_requests_total',
+    'Total HTTP requests',
+    ['method', 'endpoint', 'status']
+)
+
+REQUEST_LATENCY = Histogram(
+    'http_request_duration_seconds',
+    'HTTP request latency',
+    ['method', 'endpoint']
+)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -73,6 +87,18 @@ async def log_requests(request, call_next):
     # Calculate latency
     latency = time.time() - start_time
     
+    # Update metrics
+    REQUEST_COUNT.labels(
+        method=request.method,
+        endpoint=request.url.path,
+        status=response.status_code
+    ).inc()
+    
+    REQUEST_LATENCY.labels(
+        method=request.method,
+        endpoint=request.url.path
+    ).observe(latency)
+    
     # Log request
     logger.info(
         "HTTP Request",
@@ -106,7 +132,12 @@ async def root():
         "focus": "Real-time Transaction Processing, Fraud Detection, Risk Analytics"
     }
 
+# Prometheus metrics endpoint
+metrics_app = make_asgi_app()
+app.mount("/metrics", metrics_app)
+
 # Include routers
+app.include_router(auth.router, prefix="/api/v1", tags=["Authentication"])
 app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["Analytics"])
 
 if __name__ == "__main__":
