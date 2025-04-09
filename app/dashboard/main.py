@@ -99,8 +99,8 @@ def load_data_from_database():
 def load_fallback_data():
     """Load fallback data if pipeline fails"""
     try:
-        print("Loading sample dataset from data/dashboard_sample.csv...")
-        df = pd.read_csv("data/dashboard_sample.csv")
+        print("Loading sample dataset from data/dashboard_sample_half.csv...")
+        df = pd.read_csv("data/dashboard_sample_half.csv")
         print(f"Successfully loaded {len(df):,} transactions from optimized sample dataset")
         return df
     except Exception as e:
